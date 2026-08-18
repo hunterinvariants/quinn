@@ -1,10 +1,6 @@
-use std::{
-    io::{self, IoSliceMut},
-    sync::Mutex,
-    time::Instant,
-};
+use std::io::{self, IoSliceMut};
 
-use super::{IO_ERROR_LOG_INTERVAL, RecvMeta, Transmit, UdpSockRef, log_sendmsg_error};
+use super::{RecvMeta, Transmit, UdpSockRef};
 
 /// Fallback UDP socket interface that stubs out all special functionality
 ///
@@ -12,40 +8,13 @@ use super::{IO_ERROR_LOG_INTERVAL, RecvMeta, Transmit, UdpSockRef, log_sendmsg_e
 /// reduced performance compared to that enabled by some target-specific interfaces.
 #[derive(Debug)]
 pub struct UdpSocketState {
-    last_send_error: Mutex<Instant>,
+    _private: (),
 }
 
 impl UdpSocketState {
     pub fn new(socket: UdpSockRef<'_>) -> io::Result<Self> {
         socket.0.set_nonblocking(true)?;
-        let now = Instant::now();
-        Ok(Self {
-            last_send_error: Mutex::new(now.checked_sub(2 * IO_ERROR_LOG_INTERVAL).unwrap_or(now)),
-        })
-    }
-
-    /// Sends a [`Transmit`] on the given socket.
-    ///
-    /// This function will only ever return errors of kind [`io::ErrorKind::WouldBlock`].
-    /// All other errors will be logged and converted to `Ok`.
-    ///
-    /// UDP transmission errors are considered non-fatal because higher-level protocols must
-    /// employ retransmits and timeouts anyway in order to deal with UDP's unreliable nature.
-    /// Thus, logging is most likely the only thing you can do with these errors.
-    ///
-    /// If you would like to handle these errors yourself, use [`UdpSocketState::try_send`]
-    /// instead.
-    #[deprecated(note = "silences I/O errors; use `UdpSocketState::try_send() instead")]
-    pub fn send(&self, socket: UdpSockRef<'_>, transmit: &Transmit<'_>) -> io::Result<()> {
-        match send(socket, transmit) {
-            Ok(()) => Ok(()),
-            Err(e) if e.kind() == io::ErrorKind::WouldBlock => Err(e),
-            Err(e) => {
-                log_sendmsg_error(&self.last_send_error, e, transmit);
-
-                Ok(())
-            }
-        }
+        Ok(Self { _private: () })
     }
 
     /// Sends a [`Transmit`] on the given socket without any additional error handling.
